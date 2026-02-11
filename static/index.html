@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yeelight Voice Control</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1a1a2e; color: #e0e0e0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+  h1 { margin-bottom: 20px; color: #f5c518; }
+  .section { width: 100%; max-width: 600px; margin-bottom: 20px; }
+
+  /* Bulb cards */
+  #bulbs-panel { display: flex; flex-wrap: wrap; gap: 10px; }
+  .bulb-card { background: #16213e; border-radius: 10px; padding: 14px; flex: 1 1 170px; min-width: 170px; }
+  .bulb-card h3 { font-size: 14px; margin-bottom: 8px; color: #a0a0c0; }
+  .bulb-row { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 4px; }
+  .color-swatch { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #444; display: inline-block; }
+  .power-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .power-dot.on { background: #4caf50; }
+  .power-dot.off { background: #666; }
+
+  /* Push to talk */
+  #ptt-btn { width: 120px; height: 120px; border-radius: 50%; border: none; background: #e94560; color: white; font-size: 16px; font-weight: bold; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: none; transition: transform .1s, box-shadow .1s; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
+  #ptt-btn:active, #ptt-btn.recording { transform: scale(1.1); box-shadow: 0 0 30px rgba(233,69,96,.6); }
+  #ptt-btn.recording { animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 20px rgba(233,69,96,.4); } 50% { box-shadow: 0 0 40px rgba(233,69,96,.8); } }
+  #ptt-btn:disabled { background: #555; cursor: not-allowed; }
+  #mic-status { text-align: center; font-size: 12px; color: #888; margin-top: 6px; }
+
+  /* Text input */
+  .text-input-row { display: flex; gap: 8px; }
+  .text-input-row input { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #333; background: #16213e; color: #e0e0e0; font-size: 14px; }
+  .text-input-row button, .action-btn { padding: 10px 18px; border-radius: 8px; border: none; background: #0f3460; color: white; cursor: pointer; font-size: 14px; }
+  .text-input-row button:hover, .action-btn:hover { background: #1a5276; }
+
+  /* Response */
+  #response { background: #16213e; border-radius: 10px; padding: 16px; min-height: 50px; white-space: pre-wrap; }
+  #response.loading { color: #888; }
+
+  /* History */
+  #history { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+  .history-item { background: #16213e; border-radius: 8px; padding: 10px; font-size: 13px; }
+  .history-item .user-text { color: #a0c4ff; }
+  .history-item .bot-text { color: #c0c0c0; }
+
+  .toolbar { display: flex; gap: 8px; justify-content: center; }
+  label { font-size: 13px; color: #888; margin-bottom: 6px; display: block; }
+</style>
+</head>
+<body>
+
+<h1>Yeelight Voice Control</h1>
+
+<div class="section">
+  <label>Bulbs</label>
+  <div id="bulbs-panel"><span style="color:#666">No bulbs discovered yet</span></div>
+</div>
+
+<div class="section" style="display:flex;flex-direction:column;align-items:center">
+  <button id="ptt-btn">Hold to Talk</button>
+  <div id="mic-status">Requesting mic access…</div>
+</div>
+
+<div class="section">
+  <label>Or type a command</label>
+  <div class="text-input-row">
+    <input id="text-input" type="text" placeholder="e.g. turn the light blue" />
+    <button id="send-btn">Send</button>
+  </div>
+</div>
+
+<div class="section">
+  <label>Response</label>
+  <div id="response">Waiting for a command…</div>
+</div>
+
+<div class="section toolbar">
+  <button class="action-btn" id="discover-btn">Discover Bulbs</button>
+  <button class="action-btn" id="reset-btn">Reset Chat</button>
+</div>
+
+<div class="section">
+  <label>History</label>
+  <div id="history"></div>
+</div>
+
+<script>
+const pttBtn = document.getElementById('ptt-btn');
+const micStatus = document.getElementById('mic-status');
+const textInput = document.getElementById('text-input');
+const sendBtn = document.getElementById('send-btn');
+const responseEl = document.getElementById('response');
+const historyEl = document.getElementById('history');
+const bulbsPanel = document.getElementById('bulbs-panel');
+const discoverBtn = document.getElementById('discover-btn');
+const resetBtn = document.getElementById('reset-btn');
+
+let mediaStream = null;
+let recorder = null;
+let chunks = [];
+
+// Mic setup
+if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+  navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+    mediaStream = stream;
+    micStatus.textContent = 'Mic ready — hold button to talk';
+  }).catch(() => {
+    micStatus.textContent = 'Mic access denied — use text input instead';
+    pttBtn.disabled = true;
+  });
+} else {
+  micStatus.textContent = 'Mic unavailable (HTTPS required) — use text input';
+  pttBtn.disabled = true;
+}
+
+function startRecording() {
+  if (!mediaStream) return;
+  chunks = [];
+  const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+  recorder = new MediaRecorder(mediaStream, { mimeType });
+  recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+  recorder.onstop = () => {
+    const blob = new Blob(chunks, { type: recorder.mimeType });
+    sendAudio(blob);
+  };
+  recorder.start();
+  pttBtn.classList.add('recording');
+  pttBtn.textContent = 'Listening…';
+}
+
+function stopRecording() {
+  if (recorder && recorder.state === 'recording') {
+    recorder.stop();
+  }
+  pttBtn.classList.remove('recording');
+  pttBtn.textContent = 'Hold to Talk';
+}
+
+pttBtn.addEventListener('mousedown', startRecording);
+pttBtn.addEventListener('touchstart', e => { e.preventDefault(); startRecording(); });
+pttBtn.addEventListener('mouseup', stopRecording);
+pttBtn.addEventListener('mouseleave', stopRecording);
+pttBtn.addEventListener('touchend', stopRecording);
+
+async function sendAudio(blob) {
+  responseEl.textContent = 'Processing…';
+  responseEl.classList.add('loading');
+  const fd = new FormData();
+  fd.append('file', blob, 'audio.webm');
+  try {
+    const res = await fetch('/api/voice', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    showResult(data);
+  } catch (e) {
+    responseEl.textContent = 'Error: ' + e.message;
+    responseEl.classList.remove('loading');
+  }
+}
+
+async function sendText(text) {
+  if (!text.trim()) return;
+  responseEl.textContent = 'Processing…';
+  responseEl.classList.add('loading');
+  try {
+    const res = await fetch('/api/text', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    showResult(data);
+  } catch (e) {
+    responseEl.textContent = 'Error: ' + e.message;
+    responseEl.classList.remove('loading');
+  }
+}
+
+sendBtn.addEventListener('click', () => { sendText(textInput.value); textInput.value = ''; });
+textInput.addEventListener('keydown', e => { if (e.key === 'Enter') { sendText(textInput.value); textInput.value = ''; } });
+
+function showResult(data) {
+  responseEl.textContent = data.response || 'Done';
+  responseEl.classList.remove('loading');
+  if (data.bulbs) renderBulbs(data.bulbs);
+  addHistory(data.transcript, data.response);
+}
+
+function addHistory(user, bot) {
+  const div = document.createElement('div');
+  div.className = 'history-item';
+  div.innerHTML = `<div class="user-text">You: ${esc(user)}</div><div class="bot-text">Bot: ${esc(bot)}</div>`;
+  historyEl.prepend(div);
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+function renderBulbs(list) {
+  if (!list || !list.length) { bulbsPanel.innerHTML = '<span style="color:#666">No bulbs discovered</span>'; return; }
+  bulbsPanel.innerHTML = list.map(b => `
+    <div class="bulb-card">
+      <h3>${esc(b.name)}</h3>
+      <div class="bulb-row"><span class="power-dot ${b.power === 'on' ? 'on' : 'off'}"></span> ${b.power}</div>
+      <div class="bulb-row">Brightness: ${b.brightness}%</div>
+      <div class="bulb-row">Color: <span class="color-swatch" style="background:rgb(${b.color.r},${b.color.g},${b.color.b})"></span></div>
+      <div class="bulb-row">Temp: ${b.color_temp}K</div>
+    </div>
+  `).join('');
+}
+
+discoverBtn.addEventListener('click', async () => {
+  discoverBtn.textContent = 'Scanning…';
+  try {
+    const res = await fetch('/api/discover', { method: 'POST' });
+    const data = await res.json();
+    discoverBtn.textContent = `Found ${data.count} bulb(s)`;
+    // Refresh status
+    const st = await fetch('/api/text', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: 'show bulb status' }) });
+    const stData = await st.json();
+    if (stData.bulbs) renderBulbs(stData.bulbs);
+  } catch (e) {
+    discoverBtn.textContent = 'Discovery failed';
+  }
+  setTimeout(() => { discoverBtn.textContent = 'Discover Bulbs'; }, 3000);
+});
+
+resetBtn.addEventListener('click', async () => {
+  await fetch('/api/reset', { method: 'POST' });
+  historyEl.innerHTML = '';
+  responseEl.textContent = 'Chat reset.';
+});
+</script>
+</body>
+</html>
