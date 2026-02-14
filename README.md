@@ -14,7 +14,7 @@ Speak or type natural language commands to discover and control your Yeelight bu
 ## Setup
 
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
 
 Copy `.env.example` to `.env` and fill in your API keys:
@@ -30,7 +30,7 @@ Your Yeelight bulbs must have LAN Control enabled and be on the same network.
 ## Usage
 
 ```bash
-python app.py
+uv run uvicorn app:app
 ```
 
 Open `http://localhost:8000`, discover your bulbs, and start talking.
