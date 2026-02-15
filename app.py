@@ -78,7 +78,7 @@ async def voice(file: UploadFile):
     if len(audio_bytes) > MAX_UPLOAD_BYTES:
         return JSONResponse(
             {"error": "Audio file too large (max 25 MB)"},
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
         )
     if len(audio_bytes) < 100:
         return JSONResponse(
