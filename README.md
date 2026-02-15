@@ -52,3 +52,9 @@ Host networking is used so the container can discover Yeelight bulbs on your LAN
 | `llm.py` | LLM chat with tool-calling |
 | `stt.py` | Speech-to-text via GPT-4o-transcribe |
 | `static/index.html` | Web UI |
+
+## Testing
+
+```bash
+uv run pytest
+```
