@@ -27,9 +27,7 @@ class TestApiText:
         ):
             mock_llm.chat.return_value = "Turned on!"
             mock_bulbs.get_all_status.return_value = []
-            resp = await client.post(
-                "/api/text", json={"text": "turn on the light"}
-            )
+            resp = await client.post("/api/text", json={"text": "turn on the light"})
         assert resp.status_code == status.HTTP_200_OK
         data = resp.json()
         assert data["transcript"] == "turn on the light"

@@ -121,3 +121,200 @@ class TestSetColorTemp:
         result = bulbs.set_color_temp("desk", temperature=9000)
         assert result["color_temp"] == 6500
         mock_bulb.set_color_temp.assert_called_once_with(6500)
+
+
+class TestToggle:
+    def test_calls_toggle(self, populated_bulbs, mock_bulb):
+        result = bulbs.toggle("desk")
+        assert result == {"ok": True}
+        mock_bulb.toggle.assert_called_once()
+
+
+class TestSetHsv:
+    def test_basic(self, populated_bulbs, mock_bulb):
+        result = bulbs.set_hsv("desk", hue=120, saturation=80)
+        assert result == {"ok": True, "hue": 120, "saturation": 80}
+        mock_bulb.set_hsv.assert_called_once_with(120, 80, None)
+
+    def test_with_value(self, populated_bulbs, mock_bulb):
+        result = bulbs.set_hsv("desk", hue=0, saturation=100, value=50)
+        assert result["value"] == 50
+        mock_bulb.set_hsv.assert_called_once_with(0, 100, 50)
+
+    def test_clamps_hue(self, populated_bulbs, mock_bulb):
+        result = bulbs.set_hsv("desk", hue=400, saturation=50)
+        assert result["hue"] == 359
+
+    def test_clamps_saturation(self, populated_bulbs, mock_bulb):
+        result = bulbs.set_hsv("desk", hue=0, saturation=150)
+        assert result["saturation"] == 100
+
+    def test_clamps_value(self, populated_bulbs, mock_bulb):
+        result = bulbs.set_hsv("desk", hue=0, saturation=0, value=200)
+        assert result["value"] == 100
+
+
+class TestSetAdjust:
+    def test_increase_bright(self, populated_bulbs, mock_bulb):
+        result = bulbs.set_adjust("desk", "increase", "bright")
+        assert result == {"ok": True, "action": "increase", "prop": "bright"}
+        mock_bulb.set_adjust.assert_called_once_with("increase", "bright")
+
+    def test_circle_color(self, populated_bulbs, mock_bulb):
+        result = bulbs.set_adjust("desk", "circle", "color")
+        assert result["action"] == "circle"
+
+    def test_invalid_action(self, populated_bulbs):
+        with pytest.raises(ValueError, match="Invalid action"):
+            bulbs.set_adjust("desk", "bogus", "bright")
+
+    def test_invalid_prop(self, populated_bulbs):
+        with pytest.raises(ValueError, match="Invalid prop"):
+            bulbs.set_adjust("desk", "increase", "bogus")
+
+
+class TestSetDefault:
+    def test_calls_set_default(self, populated_bulbs, mock_bulb):
+        result = bulbs.set_default("desk")
+        assert result == {"ok": True}
+        mock_bulb.set_default.assert_called_once()
+
+
+class TestSetName:
+    def test_renames(self, populated_bulbs, mock_bulb):
+        result = bulbs.set_name("desk", "office")
+        assert result == {"ok": True, "old_name": "desk", "new_name": "office"}
+        mock_bulb.set_name.assert_called_once_with("office")
+        assert "office" in bulbs._bulbs
+        assert "desk" not in bulbs._bulbs
+
+    def test_empty_name(self, populated_bulbs):
+        with pytest.raises(ValueError, match="Name cannot be empty"):
+            bulbs.set_name("desk", "")
+
+
+class TestStartFlow:
+    def test_known_flow(self, populated_bulbs, mock_bulb):
+        result = bulbs.start_flow("desk", "disco")
+        assert result == {"ok": True, "flow": "disco"}
+        mock_bulb.start_flow.assert_called_once()
+
+    def test_flow_with_params(self, populated_bulbs, mock_bulb):
+        result = bulbs.start_flow("desk", "disco", bpm=140)
+        assert result["ok"] is True
+        mock_bulb.start_flow.assert_called_once()
+
+    def test_unknown_flow(self, populated_bulbs):
+        result = bulbs.start_flow("desk", "nonexistent")
+        assert "error" in result
+        assert "available_flows" in result
+
+    def test_ignores_extra_params(self, populated_bulbs, mock_bulb):
+        result = bulbs.start_flow("desk", "strobe", bogus=999)
+        assert result["ok"] is True
+
+
+class TestStopFlow:
+    def test_calls_stop_flow(self, populated_bulbs, mock_bulb):
+        result = bulbs.stop_flow("desk")
+        assert result == {"ok": True}
+        mock_bulb.stop_flow.assert_called_once()
+
+
+class TestSetSceneColor:
+    def test_basic(self, populated_bulbs, mock_bulb):
+        result = bulbs.set_scene_color("desk", r=255, g=0, b=0, brightness=80)
+        assert result["scene"] == "color"
+        assert result["brightness"] == 80
+        from yeelight.enums import SceneClass
+
+        mock_bulb.set_scene.assert_called_once_with(SceneClass.COLOR, 255, 0, 0, 80)
+
+    def test_clamps(self, populated_bulbs, mock_bulb):
+        result = bulbs.set_scene_color("desk", r=300, g=-1, b=128, brightness=0)
+        assert result["r"] == 255
+        assert result["g"] == 0
+        assert result["brightness"] == 1
+
+
+class TestSetSceneCt:
+    def test_basic(self, populated_bulbs, mock_bulb):
+        result = bulbs.set_scene_ct("desk", temperature=3000, brightness=50)
+        assert result["scene"] == "ct"
+        assert result["temperature"] == 3000
+        from yeelight.enums import SceneClass
+
+        mock_bulb.set_scene.assert_called_once_with(SceneClass.CT, 3000, 50)
+
+    def test_clamps(self, populated_bulbs, mock_bulb):
+        result = bulbs.set_scene_ct("desk", temperature=100, brightness=200)
+        assert result["temperature"] == 1700
+        assert result["brightness"] == 100
+
+
+class TestSetSceneHsv:
+    def test_basic(self, populated_bulbs, mock_bulb):
+        result = bulbs.set_scene_hsv("desk", hue=180, saturation=50, brightness=75)
+        assert result["scene"] == "hsv"
+        from yeelight.enums import SceneClass
+
+        mock_bulb.set_scene.assert_called_once_with(SceneClass.HSV, 180, 50, 75)
+
+    def test_clamps(self, populated_bulbs, mock_bulb):
+        result = bulbs.set_scene_hsv("desk", hue=400, saturation=150, brightness=0)
+        assert result["hue"] == 359
+        assert result["saturation"] == 100
+        assert result["brightness"] == 1
+
+
+class TestSetAutoDelayOff:
+    def test_basic(self, populated_bulbs, mock_bulb):
+        result = bulbs.set_auto_delay_off("desk", brightness=50, minutes=10)
+        assert result["scene"] == "auto_delay_off"
+        assert result["minutes"] == 10
+        from yeelight.enums import SceneClass
+
+        mock_bulb.set_scene.assert_called_once_with(SceneClass.AUTO_DELAY_OFF, 50, 10)
+
+    def test_clamps_min(self, populated_bulbs, mock_bulb):
+        result = bulbs.set_auto_delay_off("desk", brightness=0, minutes=0)
+        assert result["brightness"] == 1
+        assert result["minutes"] == 1
+
+
+class TestSleepTimer:
+    def test_set(self, populated_bulbs, mock_bulb):
+        result = bulbs.set_sleep_timer("desk", minutes=30)
+        assert result == {"ok": True, "sleep_timer_minutes": 30}
+        from yeelight.enums import CronType
+
+        mock_bulb.cron_add.assert_called_once_with(CronType.off, 30)
+
+    def test_clamps_min(self, populated_bulbs, mock_bulb):
+        result = bulbs.set_sleep_timer("desk", minutes=0)
+        assert result["sleep_timer_minutes"] == 1
+
+    def test_cancel(self, populated_bulbs, mock_bulb):
+        result = bulbs.cancel_sleep_timer("desk")
+        assert result == {"ok": True}
+        from yeelight.enums import CronType
+
+        mock_bulb.cron_del.assert_called_once_with(CronType.off)
+
+
+class TestSetPowerMode:
+    def test_normal(self, populated_bulbs, mock_bulb):
+        result = bulbs.set_power_mode("desk", "normal")
+        assert result == {"ok": True, "mode": "normal"}
+        from yeelight.enums import PowerMode
+
+        mock_bulb.set_power_mode.assert_called_once_with(PowerMode.NORMAL)
+
+    def test_moonlight(self, populated_bulbs, mock_bulb):
+        result = bulbs.set_power_mode("desk", "moonlight")
+        assert result["mode"] == "moonlight"
+
+    def test_unknown_mode(self, populated_bulbs):
+        result = bulbs.set_power_mode("desk", "bogus")
+        assert "error" in result
+        assert "available_modes" in result
