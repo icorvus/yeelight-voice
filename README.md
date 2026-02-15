@@ -60,6 +60,14 @@ This app has no built-in authentication. Anyone who can reach the server can con
 
 If you want to access it remotely, put it behind an authentication layer first. For example, you can use [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) with [Cloudflare Zero Trust](https://developers.cloudflare.com/cloudflare-one/) to securely expose the app to the internet without opening any ports on your router.
 
+## Development
+
+Install pre-commit hooks to run linting and formatting checks automatically on each commit:
+
+```bash
+uv run pre-commit install
+```
+
 ## Testing
 
 ```bash

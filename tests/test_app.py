@@ -185,8 +185,8 @@ class TestLifespan:
 
     async def test_empty_discovery_falls_back_to_db(self):
         with (
-            patch("app.db") as mock_db,
-            patch("app.llm") as mock_llm,
+            patch("app.db"),
+            patch("app.llm"),
             patch("app.bulbs") as mock_bulbs,
         ):
             mock_bulbs.discover.return_value = {"count": 0, "bulbs": []}
@@ -196,8 +196,8 @@ class TestLifespan:
 
     async def test_discovery_exception_falls_back_to_db(self):
         with (
-            patch("app.db") as mock_db,
-            patch("app.llm") as mock_llm,
+            patch("app.db"),
+            patch("app.llm"),
             patch("app.bulbs") as mock_bulbs,
         ):
             mock_bulbs.discover.side_effect = OSError("network error")
