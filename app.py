@@ -2,7 +2,7 @@ import asyncio
 import contextlib
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, UploadFile
+from fastapi import FastAPI, UploadFile, status
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
@@ -30,7 +30,10 @@ async def index():
 async def voice(file: UploadFile):
     audio_bytes = await file.read()
     if len(audio_bytes) < 100:
-        return JSONResponse({"error": "Audio too short"}, status_code=400)
+        return JSONResponse(
+            {"error": "Audio too short"},
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
 
     filename = file.filename or "audio.webm"
     transcript = await asyncio.to_thread(stt.transcribe, audio_bytes, filename)
