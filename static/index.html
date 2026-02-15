@@ -213,9 +213,9 @@ discoverBtn.addEventListener('click', async () => {
     const data = await res.json();
     discoverBtn.textContent = `Found ${data.count} bulb(s)`;
     // Refresh status
-    const st = await fetch('/api/text', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: 'show bulb status' }) });
-    const stData = await st.json();
-    if (stData.bulbs) renderBulbs(stData.bulbs);
+    const st = await fetch('/api/bulbs');
+    const bulbList = await st.json();
+    renderBulbs(bulbList);
   } catch (e) {
     discoverBtn.textContent = 'Discovery failed';
   }
@@ -227,6 +227,18 @@ resetBtn.addEventListener('click', async () => {
   historyEl.innerHTML = '';
   responseEl.textContent = 'Chat reset.';
 });
+
+// Load bulbs and chat history on page open
+(async () => {
+  try {
+    const [bulbsRes, historyRes] = await Promise.all([
+      fetch('/api/bulbs'),
+      fetch('/api/history'),
+    ]);
+    if (bulbsRes.ok) renderBulbs(await bulbsRes.json());
+    if (historyRes.ok) (await historyRes.json()).forEach(p => addHistory(p.transcript, p.response));
+  } catch (e) { /* ignore */ }
+})();
 </script>
 </body>
 </html>

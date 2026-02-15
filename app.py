@@ -11,6 +11,43 @@ import llm
 import stt
 
 
+class BulbColor(BaseModel):
+    r: int
+    g: int
+    b: int
+
+
+class BulbStatus(BaseModel):
+    id: str
+    name: str
+    ip: str
+    power: str
+    brightness: int
+    color: BulbColor
+    color_temp: int
+    color_mode: int
+
+
+class ChatResponse(BaseModel):
+    transcript: str
+    response: str
+    bulbs: list[BulbStatus]
+
+
+class DiscoverResponse(BaseModel):
+    bulbs: list[str]
+    count: int
+
+
+class HistoryItem(BaseModel):
+    transcript: str
+    response: str
+
+
+class ResetResponse(BaseModel):
+    ok: bool
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     db.init()
@@ -32,7 +69,7 @@ async def index():
     return FileResponse("static/index.html")
 
 
-@app.post("/api/voice")
+@app.post("/api/voice", response_model=ChatResponse)
 async def voice(file: UploadFile):
     audio_bytes = await file.read()
     if len(audio_bytes) < 100:
@@ -63,7 +100,7 @@ class TextRequest(BaseModel):
     text: str
 
 
-@app.post("/api/text")
+@app.post("/api/text", response_model=ChatResponse)
 async def text(req: TextRequest):
     response = await asyncio.to_thread(llm.chat, req.text)
     return {
@@ -73,13 +110,32 @@ async def text(req: TextRequest):
     }
 
 
-@app.post("/api/discover")
+@app.get("/api/bulbs", response_model=list[BulbStatus])
+async def get_bulbs():
+    return bulbs.get_all_status()
+
+
+@app.post("/api/discover", response_model=DiscoverResponse)
 async def discover():
     result = await asyncio.to_thread(bulbs.discover)
     return result
 
 
-@app.post("/api/reset")
+@app.get("/api/history", response_model=list[HistoryItem])
+async def history():
+    """Return user/assistant message pairs for the UI chat history."""
+    pairs = []
+    last_user = None
+    for msg in llm.get_visible_history():
+        if msg["role"] == "user":
+            last_user = msg["content"]
+        elif msg["role"] == "assistant" and last_user is not None:
+            pairs.append({"transcript": last_user, "response": msg["content"]})
+            last_user = None
+    return pairs
+
+
+@app.post("/api/reset", response_model=ResetResponse)
 async def reset():
     llm.reset_history()
     return {"ok": True}

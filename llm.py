@@ -168,7 +168,7 @@ TOOLS = [
                     "value": {
                         "type": "integer",
                         "description": (
-                            "Brightness 0-100. Omit to keep" " current brightness."
+                            "Brightness 0-100. Omit to keep current brightness."
                         ),
                     },
                 },
@@ -305,8 +305,7 @@ TOOLS = [
                     "sleep": {
                         "type": "integer",
                         "description": (
-                            "Sleep duration in ms between"
-                            " transitions (christmas/rgb)"
+                            "Sleep duration in ms between transitions (christmas/rgb)"
                         ),
                     },
                     "red": {
@@ -445,7 +444,7 @@ TOOLS = [
         "function": {
             "name": "set_sleep_timer",
             "description": (
-                "Set a sleep timer to turn off the bulb" " after a number of minutes"
+                "Set a sleep timer to turn off the bulb after a number of minutes"
             ),
             "parameters": {
                 "type": "object",
@@ -658,6 +657,15 @@ def chat(user_text: str) -> str:
 
     _trim_history()
     return "Sorry, I wasn't able to complete that action."
+
+
+def get_visible_history() -> list[dict]:
+    """Return only user and plain assistant messages (no tool calls/results)."""
+    return [
+        msg
+        for msg in _history
+        if msg["role"] in ("user", "assistant") and "tool_calls" not in msg
+    ]
 
 
 def reset_history():

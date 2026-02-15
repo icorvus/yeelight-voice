@@ -1,9 +1,18 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 import bulbs
+import db
 from bulbs import BulbInfo
+
+
+@pytest.fixture(autouse=True)
+def _test_db(tmp_path):
+    """Point the db module at a temporary database for each test."""
+    with patch.object(db, "_DB_PATH", tmp_path / "test.db"):
+        db.init()
+        yield
 
 
 @pytest.fixture(autouse=True)
