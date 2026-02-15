@@ -198,10 +198,10 @@ function renderBulbs(list) {
   bulbsPanel.innerHTML = list.map(b => `
     <div class="bulb-card">
       <h3>${esc(b.name)}</h3>
-      <div class="bulb-row"><span class="power-dot ${b.power === 'on' ? 'on' : 'off'}"></span> ${b.power}</div>
-      <div class="bulb-row">Brightness: ${b.brightness}%</div>
-      <div class="bulb-row">Color: <span class="color-swatch" style="background:rgb(${b.color.r},${b.color.g},${b.color.b})"></span></div>
-      <div class="bulb-row">Temp: ${b.color_temp}K</div>
+      <div class="bulb-row"><span class="power-dot ${b.power === 'on' ? 'on' : 'off'}"></span> ${esc(b.power)}</div>
+      <div class="bulb-row">Brightness: ${esc(String(b.brightness))}%</div>
+      <div class="bulb-row">Color: <span class="color-swatch" style="background:rgb(${parseInt(b.color.r)},${parseInt(b.color.g)},${parseInt(b.color.b)})"></span></div>
+      <div class="bulb-row">Temp: ${esc(String(b.color_temp))}K</div>
     </div>
   `).join('');
 }

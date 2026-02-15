@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, UploadFile, status
 from fastapi.responses import FileResponse, JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import bulbs
 import db
@@ -69,9 +69,17 @@ async def index():
     return FileResponse("static/index.html")
 
 
+MAX_UPLOAD_BYTES = 25 * 1024 * 1024  # 25 MB
+
+
 @app.post("/api/voice", response_model=ChatResponse)
 async def voice(file: UploadFile):
-    audio_bytes = await file.read()
+    audio_bytes = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(audio_bytes) > MAX_UPLOAD_BYTES:
+        return JSONResponse(
+            {"error": "Audio file too large (max 25 MB)"},
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+        )
     if len(audio_bytes) < 100:
         return JSONResponse(
             {"error": "Audio too short"},
@@ -97,7 +105,7 @@ async def voice(file: UploadFile):
 
 
 class TextRequest(BaseModel):
-    text: str
+    text: str = Field(max_length=1000)
 
 
 @app.post("/api/text", response_model=ChatResponse)

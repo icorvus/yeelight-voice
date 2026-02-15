@@ -4,3 +4,4 @@ __pycache__/
 .env
 .qodo/
 *.pyc
+*.db
