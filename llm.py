@@ -1,8 +1,6 @@
 import json
-import os
 from typing import Literal
 
-from dotenv import load_dotenv
 from pydantic_ai import (
     Agent,
     ModelMessage,
@@ -14,13 +12,12 @@ from pydantic_ai import (
     UsageLimits,
     UserPromptPart,
 )
+from pydantic_ai.models.openrouter import OpenRouterModel
+from pydantic_ai.providers.openrouter import OpenRouterProvider
 
 import bulbs
 import db
-
-load_dotenv()
-
-_model = os.getenv("LLM_MODEL", "google/gemini-2.5-flash")
+from settings import settings
 
 SYSTEM_PROMPT = """\
 You are a smart home assistant that controls Yeelight bulbs.
@@ -74,7 +71,11 @@ FLOW_NAMES = Literal[
     "tea_time",
 ]
 
-agent = Agent(f"openrouter:{_model}", instructions=SYSTEM_PROMPT)
+_model = OpenRouterModel(
+    settings.llm_model,
+    provider=OpenRouterProvider(api_key=settings.openrouter_api_key),
+)
+agent = Agent(_model, instructions=SYSTEM_PROMPT)
 
 
 @agent.system_prompt

@@ -1,12 +1,10 @@
 import io
-import os
 
-from dotenv import load_dotenv
 from openai import OpenAI
 
-load_dotenv()
+from settings import settings
 
-_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+_client = OpenAI(api_key=settings.openai_api_key)
 
 
 def transcribe(audio_bytes: bytes, filename: str = "audio.webm") -> str:
