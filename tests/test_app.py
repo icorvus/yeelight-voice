@@ -1,10 +1,10 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import status
 from httpx import ASGITransport, AsyncClient
 
-from app import app
+from app import app, lifespan
 
 
 @pytest.fixture
@@ -155,3 +155,52 @@ class TestApiReset:
         assert resp.status_code == status.HTTP_200_OK
         assert resp.json() == {"ok": True}
         mock_llm.reset_history.assert_called_once()
+
+
+class TestApiVoiceLargeFile:
+    async def test_rejects_oversized_audio(self, client):
+        large_audio = b"\x00" * (25 * 1024 * 1024 + 1)
+        resp = await client.post(
+            "/api/voice",
+            files={"file": ("audio.webm", large_audio, "audio/webm")},
+        )
+        assert resp.status_code == status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+        assert "too large" in resp.json()["error"].lower()
+
+
+class TestLifespan:
+    async def test_successful_discovery(self):
+        with (
+            patch("app.db") as mock_db,
+            patch("app.llm") as mock_llm,
+            patch("app.bulbs") as mock_bulbs,
+        ):
+            mock_bulbs.discover.return_value = {"count": 1, "bulbs": ["desk"]}
+            async with lifespan(MagicMock()):
+                pass
+        mock_db.init.assert_called_once()
+        mock_llm._init_history.assert_called_once()
+        mock_bulbs.discover.assert_called_once()
+        mock_bulbs.load_from_db.assert_not_called()
+
+    async def test_empty_discovery_falls_back_to_db(self):
+        with (
+            patch("app.db") as mock_db,
+            patch("app.llm") as mock_llm,
+            patch("app.bulbs") as mock_bulbs,
+        ):
+            mock_bulbs.discover.return_value = {"count": 0, "bulbs": []}
+            async with lifespan(MagicMock()):
+                pass
+        mock_bulbs.load_from_db.assert_called_once()
+
+    async def test_discovery_exception_falls_back_to_db(self):
+        with (
+            patch("app.db") as mock_db,
+            patch("app.llm") as mock_llm,
+            patch("app.bulbs") as mock_bulbs,
+        ):
+            mock_bulbs.discover.side_effect = OSError("network error")
+            async with lifespan(MagicMock()):
+                pass
+        mock_bulbs.load_from_db.assert_called_once()

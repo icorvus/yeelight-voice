@@ -70,6 +70,37 @@ class TestDiscover:
         assert result["bulbs"] == ["bulb_1"]
 
 
+class TestLoadFromDb:
+    def test_restores_bulbs(self):
+        with patch("bulbs.db") as mock_db:
+            mock_db.load_bulbs.return_value = [
+                {"bulb_id": "desk", "name": "desk", "ip": "192.168.1.10"},
+                {"bulb_id": "lamp", "name": "lamp", "ip": "192.168.1.11"},
+            ]
+            with patch("bulbs.Bulb"):
+                bulbs.load_from_db()
+        assert "desk" in bulbs._bulbs
+        assert "lamp" in bulbs._bulbs
+
+    def test_skips_existing(self, populated_bulbs):
+        with patch("bulbs.db") as mock_db:
+            mock_db.load_bulbs.return_value = [
+                {"bulb_id": "desk", "name": "desk", "ip": "192.168.1.99"},
+            ]
+            bulbs.load_from_db()
+        assert bulbs._bulbs["desk"].ip == "192.168.1.10"
+
+
+class TestGetAllStatus:
+    def test_returns_list(self, populated_bulbs):
+        result = bulbs.get_all_status()
+        assert len(result) == 1
+        assert result[0]["name"] == "desk"
+
+    def test_empty(self):
+        assert bulbs.get_all_status() == []
+
+
 class TestGetStatus:
     def test_shape(self, populated_bulbs):
         status = bulbs.get_status("desk")

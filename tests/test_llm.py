@@ -97,6 +97,47 @@ class TestChat:
         assert result == "Found 2 bulbs!"
 
 
+class TestInitHistory:
+    def test_loads_from_db(self):
+        from pydantic_ai import ModelRequest, UserPromptPart
+        from pydantic_ai.messages import ModelMessagesTypeAdapter
+
+        msgs = [ModelRequest(parts=[UserPromptPart(content="hello")])]
+        data = ModelMessagesTypeAdapter.dump_json(msgs)
+        with patch("llm.db") as mock_db:
+            mock_db.load_all_messages_json.return_value = data
+            llm._init_history()
+        assert len(llm._history) == 1
+
+    def test_noop_when_empty(self):
+        with patch("llm.db") as mock_db:
+            mock_db.load_all_messages_json.return_value = None
+            llm._init_history()
+        assert llm._history == []
+
+
+class TestInjectBulbState:
+    def test_returns_state_when_bulbs_exist(self):
+        status_data = [{"name": "desk", "power": "on"}]
+        with patch("bulbs.get_all_status", return_value=status_data):
+            result = llm.inject_bulb_state()
+        assert "desk" in result
+        assert "Current bulb state" in result
+
+    def test_returns_empty_when_no_bulbs(self):
+        with patch("bulbs.get_all_status", return_value=[]):
+            result = llm.inject_bulb_state()
+        assert result == ""
+
+
+class TestGetBulbStatus:
+    def test_delegates_to_bulbs(self):
+        with patch("bulbs.get_status", return_value={"name": "desk"}) as m:
+            result = llm.get_bulb_status(bulb_id="desk")
+        assert result == {"name": "desk"}
+        m.assert_called_once_with("desk")
+
+
 class TestToolFunctions:
     """Test tool functions directly as plain functions."""
 
