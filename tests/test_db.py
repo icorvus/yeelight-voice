@@ -87,8 +87,12 @@ class TestSaveAndLoadBulbs:
         loaded = db.load_bulbs()
         assert len(loaded) == 2
         by_id = {b["bulb_id"]: b for b in loaded}
-        assert by_id["desk"] == {"bulb_id": "desk", "name": "desk", "ip": "192.168.1.10"}
-        assert by_id["lamp"] == {"bulb_id": "lamp", "name": "lamp", "ip": "192.168.1.11"}
+        assert by_id["desk"] == {
+            "bulb_id": "desk", "name": "desk", "ip": "192.168.1.10"
+        }
+        assert by_id["lamp"] == {
+            "bulb_id": "lamp", "name": "lamp", "ip": "192.168.1.11"
+        }
 
     def test_upsert(self):
         db.save_bulbs({"desk": SimpleNamespace(name="desk", ip="192.168.1.10")})

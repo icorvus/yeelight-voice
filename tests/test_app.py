@@ -79,6 +79,36 @@ class TestApiVoice:
         assert "didn't catch" in resp.json()["response"].lower()
 
 
+class TestApiBulbs:
+    async def test_returns_bulb_list(self, client):
+        with patch("app.bulbs") as mock_bulbs:
+            mock_bulbs.get_all_status.return_value = [
+                {
+                    "id": "0x1",
+                    "name": "desk",
+                    "ip": "192.168.1.10",
+                    "power": "on",
+                    "brightness": 80,
+                    "color": {"r": 255, "g": 0, "b": 0},
+                    "color_temp": 4000,
+                    "color_mode": 1,
+                }
+            ]
+            resp = await client.get("/api/bulbs")
+        assert resp.status_code == status.HTTP_200_OK
+        data = resp.json()
+        assert len(data) == 1
+        assert data[0]["name"] == "desk"
+        assert data[0]["color"] == {"r": 255, "g": 0, "b": 0}
+
+    async def test_returns_empty_list(self, client):
+        with patch("app.bulbs") as mock_bulbs:
+            mock_bulbs.get_all_status.return_value = []
+            resp = await client.get("/api/bulbs")
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.json() == []
+
+
 class TestApiDiscover:
     async def test_returns_discovery_result(self, client):
         with patch("app.bulbs") as mock_bulbs:
@@ -86,6 +116,38 @@ class TestApiDiscover:
             resp = await client.post("/api/discover")
         assert resp.status_code == status.HTTP_200_OK
         assert resp.json()["count"] == 1
+
+
+class TestApiHistory:
+    async def test_returns_pairs(self, client):
+        with patch("app.llm") as mock_llm:
+            mock_llm.get_visible_history.return_value = [
+                {"role": "user", "content": "turn on"},
+                {"role": "assistant", "content": "Done!"},
+                {"role": "user", "content": "set blue"},
+                {"role": "assistant", "content": "Set to blue."},
+            ]
+            resp = await client.get("/api/history")
+        assert resp.status_code == status.HTTP_200_OK
+        data = resp.json()
+        assert len(data) == 2
+        assert data[0] == {"transcript": "turn on", "response": "Done!"}
+        assert data[1] == {"transcript": "set blue", "response": "Set to blue."}
+
+    async def test_empty_history(self, client):
+        with patch("app.llm") as mock_llm:
+            mock_llm.get_visible_history.return_value = []
+            resp = await client.get("/api/history")
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.json() == []
+
+    async def test_ignores_unpaired_user_message(self, client):
+        with patch("app.llm") as mock_llm:
+            mock_llm.get_visible_history.return_value = [
+                {"role": "user", "content": "hello"},
+            ]
+            resp = await client.get("/api/history")
+        assert resp.json() == []
 
 
 class TestApiReset:

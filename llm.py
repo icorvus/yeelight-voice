@@ -241,6 +241,15 @@ def chat(user_text: str) -> str:
     return "Sorry, I wasn't able to complete that action."
 
 
+def get_visible_history() -> list[dict]:
+    """Return only user and plain assistant messages (no tool calls/results)."""
+    return [
+        msg
+        for msg in _history
+        if msg["role"] in ("user", "assistant") and "tool_calls" not in msg
+    ]
+
+
 def reset_history():
     _history.clear()
     db.clear_messages()

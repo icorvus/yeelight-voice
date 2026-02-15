@@ -48,6 +48,33 @@ def _make_tool_call(tc_id, name, arguments="{}"):
     return tc
 
 
+class TestGetVisibleHistory:
+    def test_returns_user_and_assistant(self):
+        llm._history.extend([
+            {"role": "user", "content": "hello"},
+            {"role": "assistant", "content": "hi there"},
+        ])
+        result = llm.get_visible_history()
+        assert len(result) == 2
+        assert result[0] == {"role": "user", "content": "hello"}
+        assert result[1] == {"role": "assistant", "content": "hi there"}
+
+    def test_filters_tool_messages(self):
+        llm._history.extend([
+            {"role": "user", "content": "find bulbs"},
+            {"role": "assistant", "content": None, "tool_calls": [{"id": "tc1"}]},
+            {"role": "tool", "tool_call_id": "tc1", "content": '{"count":1}'},
+            {"role": "assistant", "content": "Found 1 bulb!"},
+        ])
+        result = llm.get_visible_history()
+        assert len(result) == 2
+        assert result[0]["role"] == "user"
+        assert result[1]["content"] == "Found 1 bulb!"
+
+    def test_empty_history(self):
+        assert llm.get_visible_history() == []
+
+
 class TestResetHistory:
     def test_clears(self):
         llm._history.append({"role": "user", "content": "hi"})
