@@ -54,6 +54,12 @@ Host networking is used so the container can discover Yeelight bulbs on your LAN
 | `stt.py` | Speech-to-text via GPT-4o-transcribe |
 | `static/index.html` | Web UI |
 
+## Security
+
+This app has no built-in authentication. Anyone who can reach the server can control your bulbs and trigger LLM/STT API calls (which cost money). By default it is meant to run on your local network only.
+
+If you want to access it remotely, put it behind an authentication layer first. For example, you can use [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) with [Cloudflare Zero Trust](https://developers.cloudflare.com/cloudflare-one/) to securely expose the app to the internet without opening any ports on your router.
+
 ## Testing
 
 ```bash
