@@ -1,12 +1,9 @@
 import asyncio
+import contextlib
 from contextlib import asynccontextmanager
 
-from dotenv import load_dotenv
-load_dotenv()
-
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import bulbs
@@ -16,10 +13,8 @@ import stt
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    try:
+    with contextlib.suppress(Exception):
         await asyncio.to_thread(bulbs.discover)
-    except Exception:
-        pass
     yield
 
 
@@ -32,7 +27,7 @@ async def index():
 
 
 @app.post("/api/voice")
-async def voice(file: UploadFile = File(...)):
+async def voice(file: UploadFile):
     audio_bytes = await file.read()
     if len(audio_bytes) < 100:
         return JSONResponse({"error": "Audio too short"}, status_code=400)
@@ -41,10 +36,18 @@ async def voice(file: UploadFile = File(...)):
     transcript = await asyncio.to_thread(stt.transcribe, audio_bytes, filename)
 
     if not transcript.strip():
-        return {"transcript": "", "response": "I didn't catch that. Could you try again?", "bulbs": bulbs.get_all_status()}
+        return {
+            "transcript": "",
+            "response": "I didn't catch that. Could you try again?",
+            "bulbs": bulbs.get_all_status(),
+        }
 
     response = await asyncio.to_thread(llm.chat, transcript)
-    return {"transcript": transcript, "response": response, "bulbs": bulbs.get_all_status()}
+    return {
+        "transcript": transcript,
+        "response": response,
+        "bulbs": bulbs.get_all_status(),
+    }
 
 
 class TextRequest(BaseModel):
@@ -54,7 +57,11 @@ class TextRequest(BaseModel):
 @app.post("/api/text")
 async def text(req: TextRequest):
     response = await asyncio.to_thread(llm.chat, req.text)
-    return {"transcript": req.text, "response": response, "bulbs": bulbs.get_all_status()}
+    return {
+        "transcript": req.text,
+        "response": response,
+        "bulbs": bulbs.get_all_status(),
+    }
 
 
 @app.post("/api/discover")

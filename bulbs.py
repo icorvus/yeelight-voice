@@ -1,5 +1,7 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+
 from yeelight import Bulb, discover_bulbs
+
 
 @dataclass
 class BulbInfo:
@@ -7,7 +9,9 @@ class BulbInfo:
     name: str
     ip: str
 
+
 _bulbs: dict[str, BulbInfo] = {}
+
 
 def discover() -> dict:
     """Discover Yeelight bulbs on the LAN via SSDP."""
@@ -22,6 +26,7 @@ def discover() -> dict:
         _bulbs[bulb_id] = BulbInfo(bulb=b, name=name, ip=ip)
     return {"bulbs": list(_bulbs.keys()), "count": len(_bulbs)}
 
+
 def _get_bulb(bulb_id: str = "") -> BulbInfo:
     if not _bulbs:
         raise ValueError("No bulbs discovered. Run discover_bulbs first.")
@@ -31,6 +36,7 @@ def _get_bulb(bulb_id: str = "") -> BulbInfo:
         return _bulbs[bulb_id]
     raise ValueError(f"Bulb '{bulb_id}' not found. Known bulbs: {list(_bulbs.keys())}")
 
+
 def _decode_rgb(rgb_int: int) -> dict:
     rgb_int = int(rgb_int)
     return {
@@ -38,6 +44,7 @@ def _decode_rgb(rgb_int: int) -> dict:
         "g": (rgb_int >> 8) & 0xFF,
         "b": rgb_int & 0xFF,
     }
+
 
 def get_status(bulb_id: str = "") -> dict:
     info = _get_bulb(bulb_id)
@@ -54,21 +61,26 @@ def get_status(bulb_id: str = "") -> dict:
         "color_mode": int(props.get("color_mode", 2)),
     }
 
+
 def get_all_status() -> list[dict]:
     return [get_status(bid) for bid in _bulbs]
+
 
 def turn_on(bulb_id: str = "") -> dict:
     _get_bulb(bulb_id).bulb.turn_on()
     return {"ok": True}
 
+
 def turn_off(bulb_id: str = "") -> dict:
     _get_bulb(bulb_id).bulb.turn_off()
     return {"ok": True}
+
 
 def set_brightness(bulb_id: str = "", brightness: int = 100) -> dict:
     brightness = max(1, min(100, int(brightness)))
     _get_bulb(bulb_id).bulb.set_brightness(brightness)
     return {"ok": True, "brightness": brightness}
+
 
 def set_color(bulb_id: str = "", r: int = 255, g: int = 255, b: int = 255) -> dict:
     r = max(0, min(255, int(r)))
@@ -76,6 +88,7 @@ def set_color(bulb_id: str = "", r: int = 255, g: int = 255, b: int = 255) -> di
     b = max(0, min(255, int(b)))
     _get_bulb(bulb_id).bulb.set_rgb(r, g, b)
     return {"ok": True, "color": {"r": r, "g": g, "b": b}}
+
 
 def set_color_temp(bulb_id: str = "", temperature: int = 4000) -> dict:
     temperature = max(1700, min(6500, int(temperature)))

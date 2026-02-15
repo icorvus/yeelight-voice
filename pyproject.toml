@@ -11,3 +11,12 @@ dependencies = [
     "openai",
     "yeelight",
 ]
+
+[dependency-groups]
+dev = ["ruff"]
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

@@ -1,7 +1,12 @@
 import json
 import os
+
+from dotenv import load_dotenv
 from openai import OpenAI
+
 import bulbs
+
+load_dotenv()
 
 _client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
@@ -22,13 +27,18 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "get_bulb_status",
-            "description": "Get current state of a bulb (power, brightness, color, color_temp, color_mode)",
+            "description": (
+                "Get current state of a bulb"
+                " (power, brightness, color, color_temp, color_mode)"
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "bulb_id": {
                         "type": "string",
-                        "description": "Bulb identifier. Leave empty if only one bulb exists.",
+                        "description": (
+                            "Bulb identifier. Leave empty if only one bulb exists."
+                        ),
                     }
                 },
                 "required": [],
@@ -102,7 +112,10 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "set_color_temperature",
-            "description": "Set bulb color temperature in Kelvin (1700=warm/yellow, 6500=cool/blue-white)",
+            "description": (
+                "Set bulb color temperature in Kelvin"
+                " (1700=warm/yellow, 6500=cool/blue-white)"
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -138,9 +151,15 @@ _dispatch = {
     "get_bulb_status": lambda **kw: bulbs.get_status(kw.get("bulb_id", "")),
     "turn_on": lambda **kw: bulbs.turn_on(kw.get("bulb_id", "")),
     "turn_off": lambda **kw: bulbs.turn_off(kw.get("bulb_id", "")),
-    "set_brightness": lambda **kw: bulbs.set_brightness(kw.get("bulb_id", ""), kw["brightness"]),
-    "set_color": lambda **kw: bulbs.set_color(kw.get("bulb_id", ""), kw["r"], kw["g"], kw["b"]),
-    "set_color_temperature": lambda **kw: bulbs.set_color_temp(kw.get("bulb_id", ""), kw["temperature"]),
+    "set_brightness": lambda **kw: bulbs.set_brightness(
+        kw.get("bulb_id", ""), kw["brightness"]
+    ),
+    "set_color": lambda **kw: bulbs.set_color(
+        kw.get("bulb_id", ""), kw["r"], kw["g"], kw["b"]
+    ),
+    "set_color_temperature": lambda **kw: bulbs.set_color_temp(
+        kw.get("bulb_id", ""), kw["temperature"]
+    ),
 }
 
 _history: list[dict] = []
@@ -186,7 +205,9 @@ def chat(user_text: str) -> str:
         for tc in msg.tool_calls:
             fn_name = tc.function.name
             try:
-                args = json.loads(tc.function.arguments) if tc.function.arguments else {}
+                args = (
+                    json.loads(tc.function.arguments) if tc.function.arguments else {}
+                )
                 handler = _dispatch.get(fn_name)
                 if not handler:
                     result = {"error": f"Unknown tool: {fn_name}"}
@@ -195,11 +216,13 @@ def chat(user_text: str) -> str:
             except Exception as e:
                 result = {"error": str(e)}
 
-            _history.append({
-                "role": "tool",
-                "tool_call_id": tc.id,
-                "content": json.dumps(result),
-            })
+            _history.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": json.dumps(result),
+                }
+            )
 
     _trim_history()
     return "Sorry, I wasn't able to complete that action."
