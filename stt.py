@@ -13,5 +13,10 @@ def transcribe(audio_bytes: bytes, filename: str = "audio.webm") -> str:
     """Transcribe audio bytes using OpenAI Whisper API."""
     buf = io.BytesIO(audio_bytes)
     buf.name = filename
-    result = _client.audio.transcriptions.create(model="gpt-4o-transcribe", file=buf)
+    result = _client.audio.transcriptions.create(
+        model="gpt-4o-transcribe",
+        file=buf,
+        prompt="The user is controlling smart home Yeelight bulbs via voice commands. "
+        "The audio is in either Polish or English language.",
+    )
     return result.text
