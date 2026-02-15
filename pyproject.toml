@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["ruff", "pytest", "pytest-asyncio", "httpx"]
+dev = ["ruff", "pytest", "pytest-asyncio", "pytest-cov", "httpx"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
