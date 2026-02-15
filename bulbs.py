@@ -2,6 +2,8 @@ from dataclasses import dataclass
 
 from yeelight import Bulb, discover_bulbs
 
+import db
+
 
 @dataclass
 class BulbInfo:
@@ -24,7 +26,19 @@ def discover() -> dict:
         bulb_id = name
         b = Bulb(ip)
         _bulbs[bulb_id] = BulbInfo(bulb=b, name=name, ip=ip)
+    if _bulbs:
+        db.save_bulbs(_bulbs)
     return {"bulbs": list(_bulbs.keys()), "count": len(_bulbs)}
+
+
+def load_from_db():
+    """Restore bulb registry from the database."""
+    saved = db.load_bulbs()
+    for entry in saved:
+        bulb_id = entry["bulb_id"]
+        if bulb_id not in _bulbs:
+            b = Bulb(entry["ip"])
+            _bulbs[bulb_id] = BulbInfo(bulb=b, name=entry["name"], ip=entry["ip"])
 
 
 def _get_bulb(bulb_id: str = "") -> BulbInfo:

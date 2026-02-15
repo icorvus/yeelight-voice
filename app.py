@@ -1,5 +1,4 @@
 import asyncio
-import contextlib
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, UploadFile
@@ -7,14 +6,21 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
 import bulbs
+import db
 import llm
 import stt
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    with contextlib.suppress(Exception):
-        await asyncio.to_thread(bulbs.discover)
+    db.init()
+    llm._init_history()
+    try:
+        result = await asyncio.to_thread(bulbs.discover)
+        if not result.get("count"):
+            bulbs.load_from_db()
+    except Exception:
+        bulbs.load_from_db()
     yield
 
 

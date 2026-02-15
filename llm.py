@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 import bulbs
+import db
 
 load_dotenv()
 
@@ -167,6 +168,13 @@ MAX_HISTORY = 40
 MAX_TOOL_ROUNDS = 5
 
 
+def _init_history():
+    loaded = db.load_messages()
+    if loaded:
+        _history.extend(loaded)
+        _trim_history()
+
+
 def _trim_history():
     while len(_history) > MAX_HISTORY:
         _history.pop(0)
@@ -183,6 +191,7 @@ def _build_messages() -> list[dict]:
 def chat(user_text: str) -> str:
     """Send user text through the LLM tool-calling loop. Returns final response."""
     _history.append({"role": "user", "content": user_text})
+    db.save_message("user", user_text)
     _trim_history()
 
     for _ in range(MAX_TOOL_ROUNDS):
@@ -196,11 +205,14 @@ def chat(user_text: str) -> str:
         if not msg.tool_calls:
             content = msg.content or ""
             _history.append({"role": "assistant", "content": content})
+            db.save_message("assistant", content)
             _trim_history()
             return content
 
         # Append assistant message with tool calls
-        _history.append(msg.model_dump(exclude_none=True))
+        assistant_msg = msg.model_dump(exclude_none=True)
+        _history.append(assistant_msg)
+        db.save_message("assistant", json.dumps(assistant_msg))
 
         for tc in msg.tool_calls:
             fn_name = tc.function.name
@@ -223,6 +235,7 @@ def chat(user_text: str) -> str:
                     "content": json.dumps(result),
                 }
             )
+            db.save_message("tool", json.dumps(result), tool_call_id=tc.id)
 
     _trim_history()
     return "Sorry, I wasn't able to complete that action."
@@ -230,3 +243,4 @@ def chat(user_text: str) -> str:
 
 def reset_history():
     _history.clear()
+    db.clear_messages()
