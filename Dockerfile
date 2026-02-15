@@ -7,9 +7,6 @@ RUN uv sync --frozen --no-install-project
 
 COPY . .
 
-RUN useradd --create-home appuser
-USER appuser
-
 ENV HOST=0.0.0.0
 ENV PORT=8000
 
