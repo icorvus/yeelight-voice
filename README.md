@@ -35,6 +35,14 @@ uv run uvicorn app:app
 
 Open `http://localhost:8000`, discover your bulbs, and start talking.
 
+### Docker
+
+```bash
+docker compose up --build
+```
+
+Host networking is used so the container can discover Yeelight bulbs on your LAN via SSDP multicast.
+
 ## Project structure
 
 | File | Purpose |
