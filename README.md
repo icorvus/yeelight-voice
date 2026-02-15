@@ -7,8 +7,8 @@ Speak or type natural language commands to discover and control your Yeelight bu
 ## How it works
 
 1. Voice is captured in the browser and transcribed using GPT-4o-transcribe
-2. The transcript (or typed text) is sent to an LLM (via OpenRouter) with tool-calling capabilities
-3. The LLM interprets the intent and calls bulb control functions (discover, on/off, brightness, color, color temperature)
+2. The transcript (or typed text) is sent to a LLM agent
+3. The agent interprets the intent and calls bulb control tools (discover, on/off, brightness, color, color temperature, flows, scenes, timers, and more)
 4. Results are returned as a natural language response
 
 ## Setup
@@ -49,7 +49,8 @@ Host networking is used so the container can discover Yeelight bulbs on your LAN
 |------|---------|
 | `app.py` | FastAPI server and API endpoints |
 | `bulbs.py` | Yeelight bulb discovery and control |
-| `llm.py` | LLM chat with tool-calling |
+| `llm.py` | PydanticAI agent with tool-calling |
+| `db.py` | SQLite persistence for chat history and bulbs |
 | `stt.py` | Speech-to-text via GPT-4o-transcribe |
 | `static/index.html` | Web UI |
 
