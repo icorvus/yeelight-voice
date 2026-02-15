@@ -10,6 +10,7 @@ dependencies = [
     "python-dotenv",
     "openai",
     "yeelight",
+    "pydantic-ai-slim[openrouter]>=1.59.0",
 ]
 
 [dependency-groups]

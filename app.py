@@ -88,7 +88,7 @@ async def voice(file: UploadFile):
             "bulbs": bulbs.get_all_status(),
         }
 
-    response = await asyncio.to_thread(llm.chat, transcript)
+    response = await llm.chat(transcript)
     return {
         "transcript": transcript,
         "response": response,
@@ -102,7 +102,7 @@ class TextRequest(BaseModel):
 
 @app.post("/api/text", response_model=ChatResponse)
 async def text(req: TextRequest):
-    response = await asyncio.to_thread(llm.chat, req.text)
+    response = await llm.chat(req.text)
     return {
         "transcript": req.text,
         "response": response,

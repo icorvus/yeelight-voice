@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from pathlib import Path
 
@@ -13,11 +14,10 @@ def _conn() -> sqlite3.Connection:
 def init():
     with _conn() as conn:
         conn.executescript("""
-            CREATE TABLE IF NOT EXISTS messages (
+            DROP TABLE IF EXISTS messages;
+            CREATE TABLE IF NOT EXISTS message_runs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                role TEXT NOT NULL,
-                content TEXT,
-                tool_call_id TEXT,
+                messages_json TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             CREATE TABLE IF NOT EXISTS bulbs (
@@ -29,31 +29,30 @@ def init():
         """)
 
 
-def save_message(role: str, content: str, tool_call_id: str | None = None):
+def save_messages_json(messages_json: bytes):
     with _conn() as conn:
         conn.execute(
-            "INSERT INTO messages (role, content, tool_call_id) VALUES (?, ?, ?)",
-            (role, content, tool_call_id),
+            "INSERT INTO message_runs (messages_json) VALUES (?)",
+            (messages_json.decode(),),
         )
 
 
-def load_messages() -> list[dict]:
+def load_all_messages_json() -> bytes | None:
     with _conn() as conn:
         rows = conn.execute(
-            "SELECT role, content, tool_call_id FROM messages ORDER BY id"
+            "SELECT messages_json FROM message_runs ORDER BY id"
         ).fetchall()
-    messages = []
+    if not rows:
+        return None
+    merged: list = []
     for row in rows:
-        msg: dict = {"role": row["role"], "content": row["content"] or ""}
-        if row["tool_call_id"]:
-            msg["tool_call_id"] = row["tool_call_id"]
-        messages.append(msg)
-    return messages
+        merged.extend(json.loads(row["messages_json"]))
+    return json.dumps(merged).encode()
 
 
 def clear_messages():
     with _conn() as conn:
-        conn.execute("DELETE FROM messages")
+        conn.execute("DELETE FROM message_runs")
 
 
 def save_bulbs(bulbs_dict: dict[str, object]):

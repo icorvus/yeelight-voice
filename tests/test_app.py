@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi import status
@@ -25,7 +25,7 @@ class TestApiText:
             patch("app.llm") as mock_llm,
             patch("app.bulbs") as mock_bulbs,
         ):
-            mock_llm.chat.return_value = "Turned on!"
+            mock_llm.chat = AsyncMock(return_value="Turned on!")
             mock_bulbs.get_all_status.return_value = []
             resp = await client.post("/api/text", json={"text": "turn on the light"})
         assert resp.status_code == status.HTTP_200_OK
@@ -51,7 +51,7 @@ class TestApiVoice:
             patch("app.bulbs") as mock_bulbs,
         ):
             mock_stt.transcribe.return_value = "turn on"
-            mock_llm.chat.return_value = "Done!"
+            mock_llm.chat = AsyncMock(return_value="Done!")
             mock_bulbs.get_all_status.return_value = []
             resp = await client.post(
                 "/api/voice",

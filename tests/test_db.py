@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -22,57 +23,49 @@ class TestInit:
             "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
         ).fetchall()
         names = [row["name"] for row in tables]
-        assert "messages" in names
+        assert "message_runs" in names
         assert "bulbs" in names
 
     def test_idempotent(self):
         db.init()
         db.init()
-        assert db.load_messages() == []
+        assert db.load_all_messages_json() is None
 
 
-class TestSaveAndLoadMessages:
-    def test_save_and_load(self):
-        db.save_message("user", "hello")
-        db.save_message("assistant", "hi there")
-        msgs = db.load_messages()
-        assert len(msgs) == 2
-        assert msgs[0] == {"role": "user", "content": "hello"}
-        assert msgs[1] == {"role": "assistant", "content": "hi there"}
+class TestSaveAndLoadMessagesJson:
+    def test_save_and_load_single_run(self):
+        msgs = [{"kind": "request", "parts": [{"content": "hello"}]}]
+        db.save_messages_json(json.dumps(msgs).encode())
+        loaded = db.load_all_messages_json()
+        assert loaded is not None
+        assert json.loads(loaded) == msgs
 
-    def test_tool_call_id(self):
-        db.save_message("tool", '{"ok": true}', tool_call_id="call_123")
-        msgs = db.load_messages()
-        assert len(msgs) == 1
-        assert msgs[0]["tool_call_id"] == "call_123"
+    def test_multi_run_merge(self):
+        run1 = [{"kind": "request", "parts": [{"content": "hello"}]}]
+        run2 = [{"kind": "response", "parts": [{"content": "hi"}]}]
+        db.save_messages_json(json.dumps(run1).encode())
+        db.save_messages_json(json.dumps(run2).encode())
+        loaded = db.load_all_messages_json()
+        assert loaded is not None
+        merged = json.loads(loaded)
+        assert len(merged) == 2
+        assert merged[0] == run1[0]
+        assert merged[1] == run2[0]
 
-    def test_tool_call_id_omitted_when_none(self):
-        db.save_message("user", "test")
-        msgs = db.load_messages()
-        assert "tool_call_id" not in msgs[0]
-
-    def test_null_content(self):
-        db.save_message("assistant", None)
-        msgs = db.load_messages()
-        assert msgs[0]["content"] == ""
-
-    def test_ordering(self):
-        for i in range(5):
-            db.save_message("user", f"msg{i}")
-        msgs = db.load_messages()
-        assert [m["content"] for m in msgs] == [f"msg{i}" for i in range(5)]
+    def test_empty(self):
+        assert db.load_all_messages_json() is None
 
 
 class TestClearMessages:
     def test_clear(self):
-        db.save_message("user", "hello")
-        db.save_message("assistant", "hi")
+        msgs = [{"kind": "request"}]
+        db.save_messages_json(json.dumps(msgs).encode())
         db.clear_messages()
-        assert db.load_messages() == []
+        assert db.load_all_messages_json() is None
 
     def test_clear_empty(self):
         db.clear_messages()
-        assert db.load_messages() == []
+        assert db.load_all_messages_json() is None
 
 
 class TestSaveAndLoadBulbs:
