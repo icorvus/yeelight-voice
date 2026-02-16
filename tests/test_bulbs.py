@@ -2,8 +2,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-import bulbs
-from bulbs import BulbInfo, _decode_rgb
+from yeelight_voice.core import bulbs
+from yeelight_voice.core.bulbs import BulbInfo, _decode_rgb
 
 
 class TestDecodeRgb:
@@ -44,8 +44,8 @@ class TestGetBulb:
 
 
 class TestDiscover:
-    @patch("bulbs.Bulb")
-    @patch("bulbs.discover_bulbs")
+    @patch("yeelight_voice.core.bulbs.Bulb")
+    @patch("yeelight_voice.core.bulbs.discover_bulbs")
     def test_returns_correct_count(self, mock_discover, mock_bulb_cls):
         mock_discover.return_value = [
             {"ip": "192.168.1.10", "capabilities": {"name": "desk"}},
@@ -55,15 +55,15 @@ class TestDiscover:
         assert result["count"] == 2
         assert set(result["bulbs"]) == {"desk", "lamp"}
 
-    @patch("bulbs.Bulb")
-    @patch("bulbs.discover_bulbs")
+    @patch("yeelight_voice.core.bulbs.Bulb")
+    @patch("yeelight_voice.core.bulbs.discover_bulbs")
     def test_empty(self, mock_discover, mock_bulb_cls):
         mock_discover.return_value = []
         result = bulbs.discover()
         assert result == {"bulbs": [], "count": 0}
 
-    @patch("bulbs.Bulb")
-    @patch("bulbs.discover_bulbs")
+    @patch("yeelight_voice.core.bulbs.Bulb")
+    @patch("yeelight_voice.core.bulbs.discover_bulbs")
     def test_fallback_name(self, mock_discover, mock_bulb_cls):
         mock_discover.return_value = [{"ip": "192.168.1.10", "capabilities": {}}]
         result = bulbs.discover()
@@ -72,18 +72,18 @@ class TestDiscover:
 
 class TestLoadFromDb:
     def test_restores_bulbs(self):
-        with patch("bulbs.db") as mock_db:
+        with patch("yeelight_voice.core.bulbs.db") as mock_db:
             mock_db.load_bulbs.return_value = [
                 {"bulb_id": "desk", "name": "desk", "ip": "192.168.1.10"},
                 {"bulb_id": "lamp", "name": "lamp", "ip": "192.168.1.11"},
             ]
-            with patch("bulbs.Bulb"):
+            with patch("yeelight_voice.core.bulbs.Bulb"):
                 bulbs.load_from_db()
         assert "desk" in bulbs._bulbs
         assert "lamp" in bulbs._bulbs
 
     def test_skips_existing(self, populated_bulbs):
-        with patch("bulbs.db") as mock_db:
+        with patch("yeelight_voice.core.bulbs.db") as mock_db:
             mock_db.load_bulbs.return_value = [
                 {"bulb_id": "desk", "name": "desk", "ip": "192.168.1.99"},
             ]

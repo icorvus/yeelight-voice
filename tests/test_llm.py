@@ -10,7 +10,7 @@ from pydantic_ai import (
 )
 from pydantic_ai.models.test import TestModel
 
-import llm
+from yeelight_voice.services import llm
 
 
 @pytest.fixture(autouse=True)
@@ -74,7 +74,7 @@ class TestTrimHistory:
 
 
 class TestChat:
-    @patch("bulbs.get_all_status", return_value=[])
+    @patch("yeelight_voice.core.bulbs.get_all_status", return_value=[])
     async def test_simple_response(self, mock_status):
         model = TestModel(call_tools=[], custom_output_text="Hello!")
         with llm.agent.override(model=model):
@@ -82,7 +82,7 @@ class TestChat:
         assert result == "Hello!"
         assert len(llm._history) > 0
 
-    @patch("bulbs.get_all_status", return_value=[])
+    @patch("yeelight_voice.core.bulbs.get_all_status", return_value=[])
     async def test_with_tool_call(self, mock_status):
         test_model = TestModel(
             call_tools=["discover_bulbs"],
@@ -91,7 +91,7 @@ class TestChat:
         mock_discover = {"count": 2, "bulbs": ["desk", "lamp"]}
         with (
             llm.agent.override(model=test_model),
-            patch("bulbs.discover", return_value=mock_discover),
+            patch("yeelight_voice.core.bulbs.discover", return_value=mock_discover),
         ):
             result = await llm.chat("find bulbs")
         assert result == "Found 2 bulbs!"
@@ -104,13 +104,13 @@ class TestInitHistory:
 
         msgs = [ModelRequest(parts=[UserPromptPart(content="hello")])]
         data = ModelMessagesTypeAdapter.dump_json(msgs)
-        with patch("llm.db") as mock_db:
+        with patch("yeelight_voice.services.llm.db") as mock_db:
             mock_db.load_all_messages_json.return_value = data
             llm._init_history()
         assert len(llm._history) == 1
 
     def test_noop_when_empty(self):
-        with patch("llm.db") as mock_db:
+        with patch("yeelight_voice.services.llm.db") as mock_db:
             mock_db.load_all_messages_json.return_value = None
             llm._init_history()
         assert llm._history == []
@@ -119,20 +119,24 @@ class TestInitHistory:
 class TestInjectBulbState:
     def test_returns_state_when_bulbs_exist(self):
         status_data = [{"name": "desk", "power": "on"}]
-        with patch("bulbs.get_all_status", return_value=status_data):
+        with patch(
+            "yeelight_voice.core.bulbs.get_all_status", return_value=status_data
+        ):
             result = llm.inject_bulb_state()
         assert "desk" in result
         assert "Current bulb state" in result
 
     def test_returns_empty_when_no_bulbs(self):
-        with patch("bulbs.get_all_status", return_value=[]):
+        with patch("yeelight_voice.core.bulbs.get_all_status", return_value=[]):
             result = llm.inject_bulb_state()
         assert result == ""
 
 
 class TestGetBulbStatus:
     def test_delegates_to_bulbs(self):
-        with patch("bulbs.get_status", return_value={"name": "desk"}) as m:
+        with patch(
+            "yeelight_voice.core.bulbs.get_status", return_value={"name": "desk"}
+        ) as m:
             result = llm.get_bulb_status(bulb_id="desk")
         assert result == {"name": "desk"}
         m.assert_called_once_with("desk")
@@ -142,111 +146,148 @@ class TestToolFunctions:
     """Test tool functions directly as plain functions."""
 
     def test_discover_bulbs(self):
-        with patch("bulbs.discover", return_value={"count": 1, "bulbs": ["desk"]}):
+        with patch(
+            "yeelight_voice.core.bulbs.discover",
+            return_value={"count": 1, "bulbs": ["desk"]},
+        ):
             result = llm.discover_bulbs()
         assert result == {"count": 1, "bulbs": ["desk"]}
 
     def test_turn_on(self):
-        with patch("bulbs.turn_on", return_value={"ok": True}) as m:
+        with patch("yeelight_voice.core.bulbs.turn_on", return_value={"ok": True}) as m:
             llm.turn_on(bulb_id="desk")
             m.assert_called_once_with("desk")
 
     def test_turn_off(self):
-        with patch("bulbs.turn_off", return_value={"ok": True}) as m:
+        with patch(
+            "yeelight_voice.core.bulbs.turn_off", return_value={"ok": True}
+        ) as m:
             llm.turn_off(bulb_id="desk")
             m.assert_called_once_with("desk")
 
     def test_toggle(self):
-        with patch("bulbs.toggle", return_value={"ok": True}) as m:
+        with patch("yeelight_voice.core.bulbs.toggle", return_value={"ok": True}) as m:
             llm.toggle(bulb_id="desk")
             m.assert_called_once_with("desk")
 
     def test_set_brightness(self):
-        with patch("bulbs.set_brightness", return_value={"ok": True}) as m:
+        with patch(
+            "yeelight_voice.core.bulbs.set_brightness", return_value={"ok": True}
+        ) as m:
             llm.set_brightness(brightness=50, bulb_id="desk")
             m.assert_called_once_with("desk", 50)
 
     def test_set_color(self):
-        with patch("bulbs.set_color", return_value={"ok": True}) as m:
+        with patch(
+            "yeelight_voice.core.bulbs.set_color", return_value={"ok": True}
+        ) as m:
             llm.set_color(r=255, g=0, b=0, bulb_id="desk")
             m.assert_called_once_with("desk", 255, 0, 0)
 
     def test_set_color_temperature(self):
-        with patch("bulbs.set_color_temp", return_value={"ok": True}) as m:
+        with patch(
+            "yeelight_voice.core.bulbs.set_color_temp", return_value={"ok": True}
+        ) as m:
             llm.set_color_temperature(temperature=3000, bulb_id="desk")
             m.assert_called_once_with("desk", 3000)
 
     def test_set_hsv(self):
-        with patch("bulbs.set_hsv", return_value={"ok": True}) as m:
+        with patch("yeelight_voice.core.bulbs.set_hsv", return_value={"ok": True}) as m:
             llm.set_hsv(hue=120, saturation=80, bulb_id="desk")
             m.assert_called_once_with("desk", 120, 80, None)
 
     def test_set_hsv_with_value(self):
-        with patch("bulbs.set_hsv", return_value={"ok": True}) as m:
+        with patch("yeelight_voice.core.bulbs.set_hsv", return_value={"ok": True}) as m:
             llm.set_hsv(hue=120, saturation=80, value=50, bulb_id="desk")
             m.assert_called_once_with("desk", 120, 80, 50)
 
     def test_set_adjust(self):
-        with patch("bulbs.set_adjust", return_value={"ok": True}) as m:
+        with patch(
+            "yeelight_voice.core.bulbs.set_adjust", return_value={"ok": True}
+        ) as m:
             llm.set_adjust(action="increase", prop="bright")
             m.assert_called_once_with("", "increase", "bright")
 
     def test_set_default(self):
-        with patch("bulbs.set_default", return_value={"ok": True}) as m:
+        with patch(
+            "yeelight_voice.core.bulbs.set_default", return_value={"ok": True}
+        ) as m:
             llm.set_default()
             m.assert_called_once_with("")
 
     def test_set_name(self):
-        with patch("bulbs.set_name", return_value={"ok": True}) as m:
+        with patch(
+            "yeelight_voice.core.bulbs.set_name", return_value={"ok": True}
+        ) as m:
             llm.set_name(name="office", bulb_id="desk")
             m.assert_called_once_with("desk", "office")
 
     def test_start_flow(self):
-        with patch("bulbs.start_flow", return_value={"ok": True}) as m:
+        with patch(
+            "yeelight_voice.core.bulbs.start_flow", return_value={"ok": True}
+        ) as m:
             llm.start_flow(flow_name="disco", bpm=140)
             m.assert_called_once_with(bulb_id="", flow_name="disco", bpm=140)
 
     def test_start_flow_no_extra_params(self):
-        with patch("bulbs.start_flow", return_value={"ok": True}) as m:
+        with patch(
+            "yeelight_voice.core.bulbs.start_flow", return_value={"ok": True}
+        ) as m:
             llm.start_flow(flow_name="strobe")
             m.assert_called_once_with(bulb_id="", flow_name="strobe")
 
     def test_stop_flow(self):
-        with patch("bulbs.stop_flow", return_value={"ok": True}) as m:
+        with patch(
+            "yeelight_voice.core.bulbs.stop_flow", return_value={"ok": True}
+        ) as m:
             llm.stop_flow(bulb_id="desk")
             m.assert_called_once_with("desk")
 
     def test_set_scene_color(self):
-        with patch("bulbs.set_scene_color", return_value={"ok": True}) as m:
+        with patch(
+            "yeelight_voice.core.bulbs.set_scene_color", return_value={"ok": True}
+        ) as m:
             llm.set_scene_color(r=255, g=0, b=0, brightness=80, bulb_id="desk")
             m.assert_called_once_with("desk", 255, 0, 0, 80)
 
     def test_set_scene_ct(self):
-        with patch("bulbs.set_scene_ct", return_value={"ok": True}) as m:
+        with patch(
+            "yeelight_voice.core.bulbs.set_scene_ct", return_value={"ok": True}
+        ) as m:
             llm.set_scene_ct(temperature=3000, brightness=50, bulb_id="desk")
             m.assert_called_once_with("desk", 3000, 50)
 
     def test_set_scene_hsv(self):
-        with patch("bulbs.set_scene_hsv", return_value={"ok": True}) as m:
+        with patch(
+            "yeelight_voice.core.bulbs.set_scene_hsv", return_value={"ok": True}
+        ) as m:
             llm.set_scene_hsv(hue=180, saturation=50, brightness=75, bulb_id="desk")
             m.assert_called_once_with("desk", 180, 50, 75)
 
     def test_set_auto_delay_off(self):
-        with patch("bulbs.set_auto_delay_off", return_value={"ok": True}) as m:
+        with patch(
+            "yeelight_voice.core.bulbs.set_auto_delay_off", return_value={"ok": True}
+        ) as m:
             llm.set_auto_delay_off(brightness=50, minutes=10, bulb_id="desk")
             m.assert_called_once_with("desk", 50, 10)
 
     def test_set_sleep_timer(self):
-        with patch("bulbs.set_sleep_timer", return_value={"ok": True}) as m:
+        with patch(
+            "yeelight_voice.core.bulbs.set_sleep_timer", return_value={"ok": True}
+        ) as m:
             llm.set_sleep_timer(minutes=30, bulb_id="desk")
             m.assert_called_once_with("desk", 30)
 
     def test_cancel_sleep_timer(self):
-        with patch("bulbs.cancel_sleep_timer", return_value={"ok": True}) as m:
+        with patch(
+            "yeelight_voice.core.bulbs.cancel_sleep_timer", return_value={"ok": True}
+        ) as m:
             llm.cancel_sleep_timer(bulb_id="desk")
             m.assert_called_once_with("desk")
 
     def test_set_power_mode(self):
-        with patch("bulbs.set_power_mode", return_value={"ok": True}) as m:
+        with patch(
+            "yeelight_voice.core.bulbs.set_power_mode", return_value={"ok": True}
+        ) as m:
             llm.set_power_mode(mode="moonlight", bulb_id="desk")
             m.assert_called_once_with("desk", "moonlight")

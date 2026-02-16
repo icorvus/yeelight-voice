@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-import db
+from yeelight_voice.core import db
 
 
 @pytest.fixture(autouse=True)

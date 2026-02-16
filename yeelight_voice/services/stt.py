@@ -2,13 +2,13 @@ import io
 
 from openai import OpenAI
 
-from settings import settings
+from yeelight_voice.settings import settings
 
 _client = OpenAI(api_key=settings.openai_api_key)
 
 
 def transcribe(audio_bytes: bytes, filename: str = "audio.webm") -> str:
-    """Transcribe audio bytes using OpenAI Whisper API."""
+    """Transcribe audio bytes using OpenAI API."""
     buf = io.BytesIO(audio_bytes)
     buf.name = filename
     result = _client.audio.transcriptions.create(

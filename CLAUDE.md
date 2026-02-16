@@ -13,7 +13,7 @@ Voice-controlled Yeelight smart bulb application. Users speak or type natural la
 uv sync
 
 # Run development server
-uv run uvicorn app:app --reload
+uv run uvicorn yeelight_voice.app:app --reload
 
 # Run with Docker
 docker compose up --build
@@ -33,12 +33,15 @@ uv run pytest -k test_name               # single test
 
 **Request flow:** User input (voice/text) → FastAPI endpoint → STT transcription (voice only) → LLM tool-calling loop → bulb control → JSON response with bulb status.
 
-**Source modules:**
-- `app.py` — FastAPI server with Pydantic response models. Lifespan initializes DB, loads chat history, and attempts bulb discovery with DB fallback. Serves `static/index.html` at `/`.
-- `llm.py` — LLM chat engine using pydantic-ai `Agent` with OpenRouter. Tool functions delegate to `bulbs` module. Maintains in-memory chat history (max 40 messages, auto-trimmed) with SQLite persistence.
-- `db.py` — SQLite persistence layer (`data.db`). Stores chat history as serialized pydantic-ai message runs and caches discovered bulbs for offline startup.
-- `bulbs.py` — Bulb discovery (SSDP multicast) and control via `yeelight` library. In-memory registry keyed by bulb name, with DB fallback when discovery fails. Values are clamped to valid ranges.
-- `stt.py` — Thin wrapper around OpenAI `gpt-4o-transcribe` model.
+**Package structure (`yeelight_voice/`):**
+- `app.py` — FastAPI app creation, lifespan, router inclusion, static file serving (`GET /`)
+- `settings.py` — Pydantic Settings configuration (env vars)
+- `api/models.py` — Pydantic response/request models (`BulbStatus`, `ChatResponse`, etc.)
+- `api/routes.py` — All API endpoint handlers as an `APIRouter`
+- `core/db.py` — SQLite persistence layer (`data.db`). Stores chat history as serialized pydantic-ai message runs and caches discovered bulbs for offline startup.
+- `core/bulbs.py` — Bulb discovery (SSDP multicast) and control via `yeelight` library. In-memory registry keyed by bulb name, with DB fallback when discovery fails. Values are clamped to valid ranges.
+- `services/llm.py` — LLM chat engine using pydantic-ai `Agent` with OpenRouter. Tool functions delegate to `bulbs` module. Maintains in-memory chat history (max 40 messages, auto-trimmed) with SQLite persistence.
+- `services/stt.py` — Thin wrapper around OpenAI `gpt-4o-transcribe` model.
 - `static/index.html` — Single-page vanilla JS/CSS UI with hold-to-talk mic input, text input, and bulb status cards.
 
 **Key design decisions:**

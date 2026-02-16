@@ -1,78 +1,25 @@
 import asyncio
-from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, UploadFile, status
-from fastapi.responses import FileResponse, JSONResponse
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, UploadFile, status
+from fastapi.responses import JSONResponse
 
-import bulbs
-import db
-import llm
-import stt
+from yeelight_voice.api.models import (
+    BulbStatus,
+    ChatResponse,
+    DiscoverResponse,
+    HistoryItem,
+    ResetResponse,
+    TextRequest,
+)
+from yeelight_voice.core import bulbs
+from yeelight_voice.services import llm, stt
 
-
-class BulbColor(BaseModel):
-    r: int
-    g: int
-    b: int
-
-
-class BulbStatus(BaseModel):
-    id: str
-    name: str
-    ip: str
-    power: str
-    brightness: int
-    color: BulbColor
-    color_temp: int
-    color_mode: int
-
-
-class ChatResponse(BaseModel):
-    transcript: str
-    response: str
-    bulbs: list[BulbStatus]
-
-
-class DiscoverResponse(BaseModel):
-    bulbs: list[str]
-    count: int
-
-
-class HistoryItem(BaseModel):
-    transcript: str
-    response: str
-
-
-class ResetResponse(BaseModel):
-    ok: bool
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    db.init()
-    llm._init_history()
-    try:
-        result = await asyncio.to_thread(bulbs.discover)
-        if not result.get("count"):
-            bulbs.load_from_db()
-    except Exception:
-        bulbs.load_from_db()
-    yield
-
-
-app = FastAPI(lifespan=lifespan)
-
-
-@app.get("/")
-async def index():
-    return FileResponse("static/index.html")
-
+router = APIRouter(prefix="/api")
 
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024  # 25 MB
 
 
-@app.post("/api/voice", response_model=ChatResponse)
+@router.post("/voice", response_model=ChatResponse)
 async def voice(file: UploadFile):
     audio_bytes = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(audio_bytes) > MAX_UPLOAD_BYTES:
@@ -104,11 +51,7 @@ async def voice(file: UploadFile):
     }
 
 
-class TextRequest(BaseModel):
-    text: str = Field(max_length=1000)
-
-
-@app.post("/api/text", response_model=ChatResponse)
+@router.post("/text", response_model=ChatResponse)
 async def text(req: TextRequest):
     response = await llm.chat(req.text)
     return {
@@ -118,18 +61,18 @@ async def text(req: TextRequest):
     }
 
 
-@app.get("/api/bulbs", response_model=list[BulbStatus])
+@router.get("/bulbs", response_model=list[BulbStatus])
 async def get_bulbs():
     return bulbs.get_all_status()
 
 
-@app.post("/api/discover", response_model=DiscoverResponse)
+@router.post("/discover", response_model=DiscoverResponse)
 async def discover():
     result = await asyncio.to_thread(bulbs.discover)
     return result
 
 
-@app.get("/api/history", response_model=list[HistoryItem])
+@router.get("/history", response_model=list[HistoryItem])
 async def history():
     """Return user/assistant message pairs for the UI chat history."""
     pairs = []
@@ -143,7 +86,7 @@ async def history():
     return pairs
 
 
-@app.post("/api/reset", response_model=ResetResponse)
+@router.post("/reset", response_model=ResetResponse)
 async def reset():
     llm.reset_history()
     return {"ok": True}

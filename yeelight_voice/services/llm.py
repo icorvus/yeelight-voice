@@ -15,9 +15,8 @@ from pydantic_ai import (
 from pydantic_ai.models.openrouter import OpenRouterModel
 from pydantic_ai.providers.openrouter import OpenRouterProvider
 
-import bulbs
-import db
-from settings import settings
+from yeelight_voice.core import bulbs, db
+from yeelight_voice.settings import settings
 
 SYSTEM_PROMPT = """\
 You are a smart home assistant that controls Yeelight bulbs.

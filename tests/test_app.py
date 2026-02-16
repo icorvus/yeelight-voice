@@ -4,7 +4,7 @@ import pytest
 from fastapi import status
 from httpx import ASGITransport, AsyncClient
 
-from app import app, lifespan
+from yeelight_voice.app import app, lifespan
 
 
 @pytest.fixture
@@ -22,8 +22,8 @@ class TestIndex:
 class TestApiText:
     async def test_returns_transcript_and_response(self, client):
         with (
-            patch("app.llm") as mock_llm,
-            patch("app.bulbs") as mock_bulbs,
+            patch("yeelight_voice.api.routes.llm") as mock_llm,
+            patch("yeelight_voice.api.routes.bulbs") as mock_bulbs,
         ):
             mock_llm.chat = AsyncMock(return_value="Turned on!")
             mock_bulbs.get_all_status.return_value = []
@@ -46,9 +46,9 @@ class TestApiVoice:
 
     async def test_valid_audio(self, client):
         with (
-            patch("app.stt") as mock_stt,
-            patch("app.llm") as mock_llm,
-            patch("app.bulbs") as mock_bulbs,
+            patch("yeelight_voice.api.routes.stt") as mock_stt,
+            patch("yeelight_voice.api.routes.llm") as mock_llm,
+            patch("yeelight_voice.api.routes.bulbs") as mock_bulbs,
         ):
             mock_stt.transcribe.return_value = "turn on"
             mock_llm.chat = AsyncMock(return_value="Done!")
@@ -64,8 +64,8 @@ class TestApiVoice:
 
     async def test_empty_transcript(self, client):
         with (
-            patch("app.stt") as mock_stt,
-            patch("app.bulbs") as mock_bulbs,
+            patch("yeelight_voice.api.routes.stt") as mock_stt,
+            patch("yeelight_voice.api.routes.bulbs") as mock_bulbs,
         ):
             mock_stt.transcribe.return_value = "   "
             mock_bulbs.get_all_status.return_value = []
@@ -79,7 +79,7 @@ class TestApiVoice:
 
 class TestApiBulbs:
     async def test_returns_bulb_list(self, client):
-        with patch("app.bulbs") as mock_bulbs:
+        with patch("yeelight_voice.api.routes.bulbs") as mock_bulbs:
             mock_bulbs.get_all_status.return_value = [
                 {
                     "id": "0x1",
@@ -100,7 +100,7 @@ class TestApiBulbs:
         assert data[0]["color"] == {"r": 255, "g": 0, "b": 0}
 
     async def test_returns_empty_list(self, client):
-        with patch("app.bulbs") as mock_bulbs:
+        with patch("yeelight_voice.api.routes.bulbs") as mock_bulbs:
             mock_bulbs.get_all_status.return_value = []
             resp = await client.get("/api/bulbs")
         assert resp.status_code == status.HTTP_200_OK
@@ -109,7 +109,7 @@ class TestApiBulbs:
 
 class TestApiDiscover:
     async def test_returns_discovery_result(self, client):
-        with patch("app.bulbs") as mock_bulbs:
+        with patch("yeelight_voice.api.routes.bulbs") as mock_bulbs:
             mock_bulbs.discover.return_value = {"bulbs": ["desk"], "count": 1}
             resp = await client.post("/api/discover")
         assert resp.status_code == status.HTTP_200_OK
@@ -118,7 +118,7 @@ class TestApiDiscover:
 
 class TestApiHistory:
     async def test_returns_pairs(self, client):
-        with patch("app.llm") as mock_llm:
+        with patch("yeelight_voice.api.routes.llm") as mock_llm:
             mock_llm.get_visible_history.return_value = [
                 {"role": "user", "content": "turn on"},
                 {"role": "assistant", "content": "Done!"},
@@ -133,14 +133,14 @@ class TestApiHistory:
         assert data[1] == {"transcript": "set blue", "response": "Set to blue."}
 
     async def test_empty_history(self, client):
-        with patch("app.llm") as mock_llm:
+        with patch("yeelight_voice.api.routes.llm") as mock_llm:
             mock_llm.get_visible_history.return_value = []
             resp = await client.get("/api/history")
         assert resp.status_code == status.HTTP_200_OK
         assert resp.json() == []
 
     async def test_ignores_unpaired_user_message(self, client):
-        with patch("app.llm") as mock_llm:
+        with patch("yeelight_voice.api.routes.llm") as mock_llm:
             mock_llm.get_visible_history.return_value = [
                 {"role": "user", "content": "hello"},
             ]
@@ -150,7 +150,7 @@ class TestApiHistory:
 
 class TestApiReset:
     async def test_resets_history(self, client):
-        with patch("app.llm") as mock_llm:
+        with patch("yeelight_voice.api.routes.llm") as mock_llm:
             resp = await client.post("/api/reset")
         assert resp.status_code == status.HTTP_200_OK
         assert resp.json() == {"ok": True}
@@ -171,9 +171,9 @@ class TestApiVoiceLargeFile:
 class TestLifespan:
     async def test_successful_discovery(self):
         with (
-            patch("app.db") as mock_db,
-            patch("app.llm") as mock_llm,
-            patch("app.bulbs") as mock_bulbs,
+            patch("yeelight_voice.app.db") as mock_db,
+            patch("yeelight_voice.app.llm") as mock_llm,
+            patch("yeelight_voice.app.bulbs") as mock_bulbs,
         ):
             mock_bulbs.discover.return_value = {"count": 1, "bulbs": ["desk"]}
             async with lifespan(MagicMock()):
@@ -185,9 +185,9 @@ class TestLifespan:
 
     async def test_empty_discovery_falls_back_to_db(self):
         with (
-            patch("app.db"),
-            patch("app.llm"),
-            patch("app.bulbs") as mock_bulbs,
+            patch("yeelight_voice.app.db"),
+            patch("yeelight_voice.app.llm"),
+            patch("yeelight_voice.app.bulbs") as mock_bulbs,
         ):
             mock_bulbs.discover.return_value = {"count": 0, "bulbs": []}
             async with lifespan(MagicMock()):
@@ -196,9 +196,9 @@ class TestLifespan:
 
     async def test_discovery_exception_falls_back_to_db(self):
         with (
-            patch("app.db"),
-            patch("app.llm"),
-            patch("app.bulbs") as mock_bulbs,
+            patch("yeelight_voice.app.db"),
+            patch("yeelight_voice.app.llm"),
+            patch("yeelight_voice.app.bulbs") as mock_bulbs,
         ):
             mock_bulbs.discover.side_effect = OSError("network error")
             async with lifespan(MagicMock()):

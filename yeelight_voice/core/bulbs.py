@@ -4,7 +4,7 @@ from yeelight import Bulb, discover_bulbs
 from yeelight import flows as yee_flows
 from yeelight.enums import CronType, PowerMode, SceneClass
 
-import db
+from yeelight_voice.core import db
 
 
 @dataclass

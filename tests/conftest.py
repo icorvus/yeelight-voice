@@ -2,9 +2,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-import bulbs
-import db
-from bulbs import BulbInfo
+from yeelight_voice.core import bulbs, db
+from yeelight_voice.core.bulbs import BulbInfo
 
 
 @pytest.fixture(autouse=True)

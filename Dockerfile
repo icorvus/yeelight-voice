@@ -12,4 +12,4 @@ ENV PORT=8000
 
 EXPOSE ${PORT}
 
-CMD uv run uvicorn app:app --host ${HOST} --port ${PORT}
+CMD uv run uvicorn yeelight_voice.app:app --host ${HOST} --port ${PORT}

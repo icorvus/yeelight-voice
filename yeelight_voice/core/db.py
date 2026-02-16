@@ -2,7 +2,7 @@ import json
 import sqlite3
 from pathlib import Path
 
-_DB_PATH = Path(__file__).parent / "data.db"
+_DB_PATH = Path(__file__).resolve().parent.parent.parent / "data.db"
 
 
 def _conn() -> sqlite3.Connection:

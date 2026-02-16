@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, patch
 
-import stt
+from yeelight_voice.services import stt
 
 
 class TestTranscribe:
